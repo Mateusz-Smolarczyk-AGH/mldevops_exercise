@@ -4,6 +4,18 @@ import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
+import wandb
+
+wandb.login()
+run = wandb.init(
+    # Set the project where this run will be logged
+    project="my-awesome-project",
+    # Track hyperparameters and run metadata
+    config={
+        "learning_rate": 0.01,
+        "epochs": 3,
+    },
+)
 
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
 
@@ -46,6 +58,8 @@ def train_model(model, train_loader, criterion, optimizer, num_epochs=1):
             loss.backward()  # Backpropagation
             optimizer.step()  # Update model weights
             running_loss += loss.item()
+            wandb.log({"loss": loss})
+
         print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss/len(train_loader):.4f}")
 
 
