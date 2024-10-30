@@ -5,6 +5,7 @@ import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 import wandb
+import optuna
 
 wandb.login()
 run = wandb.init(
@@ -41,10 +42,41 @@ class FashionMNISTModel(nn.Module):
         return x
 
 
-model = FashionMNISTModel()
+def objective(trial):
+    # Próbujemy różne wartości hiperparametrów
+    learning_rate = trial.suggest_loguniform("learning_rate", 1e-4, 1e-1)
+    batch_size = trial.suggest_categorical("batch_size", [32, 64, 128, 256])
+    num_epochs = trial.suggest_int("num_epochs", 1, 10)
 
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+    # Aktualizujemy dane wejściowe z nowym batch_size
+    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
+
+    # Inicjalizujemy model i optymalizator z nowym learning_rate
+    model = FashionMNISTModel()
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+
+    # Trenujemy model z próbnymi hiperparametrami
+    train_model(model, train_loader, criterion, optimizer, num_epochs=num_epochs)
+
+    # Testujemy model i obliczamy dokładność
+    correct = 0
+    total = 0
+    model.eval()
+    with torch.no_grad():
+        for images, labels in test_loader:
+            outputs = model(images)
+            _, predicted = torch.max(outputs, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+    accuracy = 100 * correct / total
+
+    # Logujemy wynik dla tej próby
+    wandb.log(
+        {"accuracy": accuracy, "learning_rate": learning_rate, "batch_size": batch_size, "num_epochs": num_epochs}
+    )
+
+    return accuracy
 
 
 def train_model(model, train_loader, criterion, optimizer, num_epochs=1):
@@ -62,6 +94,14 @@ def train_model(model, train_loader, criterion, optimizer, num_epochs=1):
 
         print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss/len(train_loader):.4f}")
 
+
+model = FashionMNISTModel()
+
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+study = optuna.create_study(direction="maximize")
+study.optimize(objective, n_trials=3)  # n_trials ustala liczbę prób do wykonania
 
 train_model(model, train_loader, criterion, optimizer, num_epochs=8)
 
