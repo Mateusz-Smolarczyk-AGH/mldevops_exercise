@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "smolar-package"
+version = "1.0.0"
+description = "My first package. I'm not sure what I'm doing."
+authors = ["Your Name <you@example.com>"]
+license = "n"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "3.11.10"
+torch = "^2.5.1"
+torchvision = "^0.20.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
